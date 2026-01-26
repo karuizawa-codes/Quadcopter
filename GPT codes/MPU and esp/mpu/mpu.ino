@@ -10,9 +10,18 @@ int16_t GX, GY, GZ;
 float AXmin = -1.00; 
 float AXmax = 1.00; 
 float AYmin = -1.00; 
-float AYmax = 1.00; 
+float AYman = 1.00; 
 float AZmin = -1.00; 
 float AZmax = 1.00; 
+
+//Calculating scale and Offset for error correction
+float Xoffset = (AXmax + AXmin) / 2;
+float Yoffset = (AYman + AYmin) / 2;
+float Zoffset = (AZmax + AZmin) / 2;
+ 
+float Xscale = 2/(AXmax - AXmin);
+float Yscale = 2/(AYman - AYmin);
+float Zscale = 2/(AZmax - AZmin);
 
 // Angles
 float roll = 0.0;
@@ -31,7 +40,8 @@ float dt;
 // Complementary filter constant
 float alpha = 0.98;
 
-void setup() {
+void setup() 
+{
   Serial.begin(115200);
   Wire.begin(21, 22);
 
@@ -44,13 +54,14 @@ void setup() {
   lastTime = micros();
 }
 
-void loop() {
-  // -------- TIME STEP --------
+void loop() 
+{
+  // TIME STEP
   unsigned long currentTime = micros();
   dt = (currentTime - lastTime) * 1e-6;
   lastTime = currentTime;
 
-  // -------- READ MPU6050 --------
+  // READ MPU6050
   Wire.beginTransmission(MPU_ADDR);
   Wire.write(0x3B);
   Wire.endTransmission(false);
@@ -64,7 +75,7 @@ void loop() {
   GY = Wire.read() << 8 | Wire.read();
   GZ = Wire.read() << 8 | Wire.read();
 
-  // -------- CONVERT RAW DATA --------
+  //CONVERT RAW DATA
   float Ax = AX / 16384.0;
   float Ay = AY / 16384.0;
   float Az = AZ / 16384.0;
@@ -72,19 +83,24 @@ void loop() {
   GRollRate  = GX / 131.0;
   GPitchRate = GY / 131.0;
 
-  // -------- AELEROMETER ANGLES --------
+  //Caliberation of Accelerometer
+  // Ax = Xscale*(Ax-Xoffset);
+  // Ay = Yscale*(Ay-Yoffset);
+  // Az = Zscale*(Az-Zoffset);
+
+  //AELEROMETER ANGLES
   rollA  = atan2(Ay, sqrt(Ax * Ax + Az * Az)) * 180 / PI;
   pitchA = atan2(Ax, sqrt(Ay * Ay + Az * Az)) * 180 / PI;
 
-  // -------- G INTEGRATION --------
+  //G INTEGRATION
   rollG  += GRollRate * dt;
   pitchG += GPitchRate * dt;
 
-  // -------- COMPLEMENTARY FILTER --------
+  //COMPLEMENTARY FILTER
   roll  = alpha * rollG  + (1 - alpha) * rollA;
   pitch = alpha * pitchG + (1 - alpha) * pitchA;
 
-  // -------- OUTPUT --------
+  //OUTPUT
   Serial.print("Roll:");
   Serial.print(roll);
   Serial.print(",");
