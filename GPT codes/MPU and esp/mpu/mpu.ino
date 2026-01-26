@@ -6,6 +6,14 @@
 int16_t AX, AY, AZ;
 int16_t GX, GY, GZ;
 
+// Check min and Max valuse for your own MPUs to calibrate
+float AXmin = -1.00; 
+float AXmax = 1.00; 
+float AYmin = -1.00; 
+float AYmax = 1.00; 
+float AZmin = -1.00; 
+float AZmax = 1.00; 
+
 // Angles
 float roll = 0.0;
 float pitch = 0.0;
