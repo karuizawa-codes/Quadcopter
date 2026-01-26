@@ -93,12 +93,12 @@ void loop()
   pitchA = atan2(Ax, sqrt(Ay * Ay + Az * Az)) * 180 / PI;
 
   //G INTEGRATION
-  rollG  += GRollRate * dt;
-  pitchG += GPitchRate * dt;
+  roll  += GRollRate * dt;
+  pitch += GPitchRate * dt;
 
   //COMPLEMENTARY FILTER
-  roll  = alpha * rollG  + (1 - alpha) * rollA;
-  pitch = alpha * pitchG + (1 - alpha) * pitchA;
+  roll  = alpha * roll  + (1 - alpha) * rollA;
+  pitch = alpha * pitch + (1 - alpha) * pitchA;
 
   //OUTPUT
   Serial.print("Roll:");
