@@ -3,18 +3,18 @@
 #define MPU_ADDR 0x68
 
 // Raw sensor values
-int16_t accX, accY, accZ;
-int16_t gyroX, gyroY, gyroZ;
+int16_t AX, AY, AZ;
+int16_t GX, GY, GZ;
 
 // Angles
 float roll = 0.0;
 float pitch = 0.0;
 
 // Accelerometer angles
-float rollAcc, pitchAcc;
+float rollA, pitchA;
 
 // Gyro rates
-float gyroRollRate, gyroPitchRate;
+float GRollRate, GPitchRate;
 
 // Timing
 unsigned long lastTime = 0;
@@ -48,38 +48,39 @@ void loop() {
   Wire.endTransmission(false);
   Wire.requestFrom(MPU_ADDR, 14, true);
 
-  accX = Wire.read() << 8 | Wire.read();
-  accY = Wire.read() << 8 | Wire.read();
-  accZ = Wire.read() << 8 | Wire.read();
+  AX = Wire.read() << 8 | Wire.read();
+  AY = Wire.read() << 8 | Wire.read();
+  AZ = Wire.read() << 8 | Wire.read();
   Wire.read(); Wire.read(); // temperature (ignore)
-  gyroX = Wire.read() << 8 | Wire.read();
-  gyroY = Wire.read() << 8 | Wire.read();
-  gyroZ = Wire.read() << 8 | Wire.read();
+  GX = Wire.read() << 8 | Wire.read();
+  GY = Wire.read() << 8 | Wire.read();
+  GZ = Wire.read() << 8 | Wire.read();
 
   // -------- CONVERT RAW DATA --------
-  float Ax = accX / 16384.0;
-  float Ay = accY / 16384.0;
-  float Az = accZ / 16384.0;
+  float Ax = AX / 16384.0;
+  float Ay = AY / 16384.0;
+  float Az = AZ / 16384.0;
 
-  gyroRollRate  = gyroX / 131.0;
-  gyroPitchRate = gyroY / 131.0;
+  GRollRate  = GX / 131.0;
+  GPitchRate = GY / 131.0;
 
-  // -------- ACCELEROMETER ANGLES --------
-  rollAcc  = atan2(Ay, Az) * 180 / PI;
-  pitchAcc = atan2(-Ax, sqrt(Ay * Ay + Az * Az)) * 180 / PI;
+  // -------- AELEROMETER ANGLES --------
+  rollA  = atan2(Ay, sqrt(Ax * Ax + Az * Az)) * 180 / PI;
+  pitchA = atan2(Ax, sqrt(Ay * Ay + Az * Az)) * 180 / PI;
 
-  // -------- GYRO INTEGRATION --------
-  roll  += gyroRollRate * dt;
-  pitch += gyroPitchRate * dt;
+  // -------- G INTEGRATION --------
+  rollG  += GRollRate * dt;
+  pitchG += GPitchRate * dt;
 
   // -------- COMPLEMENTARY FILTER --------
-  roll  = alpha * roll  + (1 - alpha) * rollAcc;
-  pitch = alpha * pitch + (1 - alpha) * pitchAcc;
+  roll  = alpha * rollG  + (1 - alpha) * rollA;
+  pitch = alpha * pitchG + (1 - alpha) * pitchA;
 
   // -------- OUTPUT --------
-  Serial.print("Roll: ");
+  Serial.print("Roll:");
   Serial.print(roll);
-  Serial.print(" | Pitch: ");
+  Serial.print(",");
+  Serial.print("Pitch:");
   Serial.println(pitch);
 
   delay(5); // ~200 Hz loop
