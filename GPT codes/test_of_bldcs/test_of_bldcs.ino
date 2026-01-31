@@ -54,7 +54,7 @@ void armESCs() {
   motor4.writeMicroseconds(ARM_THROTTLE);
 
   Serial.println("Arming ESCs...");
-  delay(3000);
+  delay(10000);
   Serial.println("ESCs Armed");
 }
 

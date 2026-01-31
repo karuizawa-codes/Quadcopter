@@ -1,70 +1,86 @@
-#include <Servo.h>
+#include <Wire.h>
 
-// Create motor objects
-Servo motor1;
-Servo motor2;
-Servo motor3;
-Servo motor4;
+#define MPU_ADDR 0x68
 
-// ESC pulse width limits (microseconds)
-const int throttleMin = 1000; // minimum
-const int throttleMax = 2000; // maximum
+// Raw sensor values
+int16_t accX, accY, accZ;
+int16_t gyroX, gyroY, gyroZ;
+
+// Angles
+float roll = 0.0;
+float pitch = 0.0;
+
+// Accelerometer angles
+float rollAcc, pitchAcc;
+
+// Gyro rates
+float gyroRollRate, gyroPitchRate;
+
+// Timing
+unsigned long lastTime = 0;
+float dt;
+
+// Complementary filter constant
+float alpha = 0.98;
 
 void setup() {
-  // Attach motors with min/max constraints
-  motor1.attach(3, throttleMin, throttleMax);
-  motor2.attach(5, throttleMin, throttleMax);
-  motor3.attach(6, throttleMin, throttleMax);
-  motor4.attach(9, throttleMin, throttleMax);
+  Serial.begin(115200);
+  Wire.begin(21, 22);
 
-  // Initialize motors to minimum throttle
-  motor1.writeMicroseconds(throttleMin);
-  motor2.writeMicroseconds(throttleMin);
-  motor3.writeMicroseconds(throttleMin);
-  motor4.writeMicroseconds(throttleMin);
+  // Wake up MPU6050
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x6B);
+  Wire.write(0);
+  Wire.endTransmission(true);
 
-  delay(2000); // Give ESCs time to arm
+  lastTime = micros();
 }
 
 void loop() {
-  // ----- ALL MOTORS TOGETHER -----
-  Serial.println("Ramping up all motors...");
-  for(int t = throttleMin; t <= throttleMax; t += 20){
-    motor1.writeMicroseconds(t);
-    motor2.writeMicroseconds(t);
-    motor3.writeMicroseconds(t);
-    motor4.writeMicroseconds(t);
-    delay(200);
-  }
+  // -------- TIME STEP --------
+  unsigned long currentTime = micros();
+  dt = (currentTime - lastTime) * 1e-6;
+  lastTime = currentTime;
 
-  delay(2000); // Hold max throttle
+  // -------- READ MPU6050 --------
+  Wire.beginTransmission(MPU_ADDR);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU_ADDR, 14, true);
 
-  Serial.println("Ramping down all motors...");
-  for(int t = throttleMax; t >= throttleMin; t -= 20){
-    motor1.writeMicroseconds(t);
-    motor2.writeMicroseconds(t);
-    motor3.writeMicroseconds(t);
-    motor4.writeMicroseconds(t);
-    delay(200);
-  }
+  accX = Wire.read() << 8 | Wire.read();
+  accY = Wire.read() << 8 | Wire.read();
+  accZ = Wire.read() << 8 | Wire.read();
+  Wire.read(); Wire.read(); // temperature (ignore)
+  gyroX = Wire.read() << 8 | Wire.read();
+  gyroY = Wire.read() << 8 | Wire.read();
+  gyroZ = Wire.read() << 8 | Wire.read();
 
-  delay(2000); // Wait before next loop
+  // -------- CONVERT RAW DATA --------
+  float Ax = accX / 16384.0;
+  float Ay = accY / 16384.0;
+  float Az = accZ / 16384.0;
 
-  // ----- OPTIONAL: INDIVIDUAL MOTOR TEST -----
-  // Uncomment if you want to test motors one by one
-  /*
-  testSingleMotor(motor1, "Motor1");
-  testSingleMotor(motor2, "Motor2");
-  testSingleMotor(motor3, "Motor3");
-  testSingleMotor(motor4, "Motor4");
-  */
-}
+  gyroRollRate  = gyroX / 131.0;
+  gyroPitchRate = gyroY / 131.0;
 
-// Helper function to test one motor at a time
-void testSingleMotor(Servo &motor, String name){
-  Serial.println("Testing " + name);
-  motor.writeMicroseconds(throttleMax);
-  delay(2000);
-  motor.writeMicroseconds(throttleMin);
-  delay(1000);
+  // -------- ACCELEROMETER ANGLES --------
+  rollAcc  = atan2(Ay, sqrt(Ax * Ax + Az * Az)) * 180 / PI;
+  pitchAcc = atan2(-Ax, sqrt(Ay * Ay + Az * Az)) * 180 / PI;
+
+  // -------- GYRO INTEGRATION --------
+  roll  += gyroRollRate * dt;
+  pitch += gyroPitchRate * dt;
+
+  // -------- COMPLEMENTARY FILTER --------
+  roll  = alpha * roll  + (1 - alpha) * rollAcc;
+  pitch = alpha * pitch + (1 - alpha) * pitchAcc;
+
+  // -------- OUTPUT --------
+  Serial.print("Roll: ");
+  Serial.print(roll);
+  Serial.print(" | Pitch: ");
+  Serial.println(pitch);
+
+  delay(5); // ~200 Hz loop
 }

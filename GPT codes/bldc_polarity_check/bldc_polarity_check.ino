@@ -18,7 +18,7 @@ void setup() {
 
   Serial.println("Arming ESC...");
   esc.writeMicroseconds(ESC_ARM);
-  delay(3000);   // wait for ESC arming beeps
+  delay(10000);   // wait for ESC arming beeps
 
   Serial.println("ESC Armed");
 }

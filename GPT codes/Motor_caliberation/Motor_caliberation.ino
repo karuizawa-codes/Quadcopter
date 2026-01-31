@@ -23,7 +23,7 @@ void setup() {
   motor3.writeMicroseconds(throttleMin);
   motor4.writeMicroseconds(throttleMin);
 
-  delay(2000); // Give ESCs time to arm
+  delay(10000); // Give ESCs time to arm
 }
 
 void loop() {
